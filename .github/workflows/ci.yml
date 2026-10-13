@@ -9,8 +9,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      # Keep going when one version fails, so the others still report.
+      fail-fast: false
       matrix:
-        go: ["1.24", "stable"]
+        # From the minimum in go.mod through the latest release.
+        go: ["1.24", "1.25", "1.26", "1.27"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
