@@ -1,0 +1,15 @@
+{
+  "rules": [
+    {
+      "id": "reports",
+      "path": "/reports/*",
+      "retry_after_seconds": 120,
+      "message": "Reports are temporarily disabled while we recover from an incident."
+    },
+    {
+      "id": "search-partial",
+      "path": "/search",
+      "allow_percent": 25
+    }
+  ]
+}

@@ -1,5 +1,8 @@
 # brownout
 
+[![CI](https://github.com/rossedman/brownout/actions/workflows/ci.yml/badge.svg)](https://github.com/rossedman/brownout/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rossedman/brownout.svg)](https://pkg.go.dev/github.com/rossedman/brownout)
+
 Go HTTP middleware for **browning out endpoints at runtime**. You can shed some or all traffic to selected routes without restarting or redeploying the server.
 
 Use it when a downstream dependency is struggling and you want to turn off an expensive endpoint, cut a noisy route to 10% of its traffic, or make writes read-only for a while. When the incident is over, you remove the rule.
@@ -46,7 +49,22 @@ curl localhost:9090/rules
 curl -X DELETE localhost:9090/rules/reports
 ```
 
-A complete runnable server is in [`examples/basic`](examples/basic/main.go).
+📖 **Docs and an interactive rule playground: https://rossedman.github.io/brownout/**
+
+## Examples
+
+Each example is a small runnable server (`go run ./examples/<name>`). The curl commands to try it are at the top of each file.
+
+| Example | Shows |
+|---|---|
+| [`basic`](examples/basic/main.go) | The middleware plus the admin API on a separate internal port |
+| [`admin-auth`](examples/admin-auth/main.go) | App and admin API on one port, with bearer-token auth and the admin API mounted outside the middleware |
+| [`filewatch`](examples/filewatch/main.go) | Rules loaded from a JSON file and reloaded when it changes (Kubernetes ConfigMap pattern) |
+| [`auto`](examples/auto/main.go) | Automatically browning out an endpoint when its dependency fails its health checks, and restoring it on recovery |
+| [`degrade`](examples/degrade/main.go) | Using `Check` to serve a cheaper response instead of a 503 |
+| [`metrics`](examples/metrics/main.go) | Counting shed requests per rule with `WithOnShed`, and JSON error bodies with `WithResponder` |
+
+There are also runnable snippets in [`example_test.go`](example_test.go), which appear on pkg.go.dev.
 
 ## Rules
 
