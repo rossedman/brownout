@@ -23,6 +23,11 @@ func writeRules(t *testing.T, path, data string) {
 	}
 }
 
+func init() {
+	// Keep shutdown fast in tests; the forced-close path still runs.
+	shutdownGrace = 100 * time.Millisecond
+}
+
 func waitFor(t *testing.T, desc string, cond func() bool) {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
@@ -149,5 +154,43 @@ func TestCLI(t *testing.T) {
 	cancel()
 	if err := cli(ctx, []string{"-addr", "127.0.0.1:0", "-rules", rules, "-interval", "1s"}); err != nil {
 		t.Errorf("cli returned %v, want nil", err)
+	}
+}
+
+// A client can open a connection and never send a request on it. Go's HTTP
+// client does this when a spare dial loses the race to a pooled connection.
+// The server counts such a connection as active for up to 5s, which used to
+// make graceful shutdown time out and run return an error.
+func TestShutdownWithUnusedConnection(t *testing.T) {
+	rules := filepath.Join(t.TempDir(), "rules.json")
+	writeRules(t, rules, `{"rules":[]}`)
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- run(ctx, ln, rules, time.Second) }()
+
+	// Make sure the server is serving, then open a connection and leave it
+	// unused.
+	if got := status(t, "http://"+ln.Addr().String()+"/"); got != http.StatusOK {
+		t.Fatalf("status = %d", got)
+	}
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("run returned %v, want nil", err)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("run did not return after cancel")
 	}
 }

@@ -26,6 +26,9 @@ import (
 	"github.com/rossedman/brownout"
 )
 
+// shutdownGrace is how long in-flight requests get to finish on shutdown.
+var shutdownGrace = 5 * time.Second
+
 // run serves the app on ln with rules loaded from rulesPath, reloading them
 // every interval, until ctx is canceled. It returns once the server and the
 // file watcher have both stopped.
@@ -67,9 +70,14 @@ func run(ctx context.Context, ln net.Listener, rulesPath string, interval time.D
 	case <-ctx.Done():
 	}
 
-	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), shutdownGrace)
 	defer cancelShutdown()
 	err := srv.Shutdown(shutdownCtx)
+	if errors.Is(err, context.DeadlineExceeded) {
+		// Connections still open after the grace period, including ones a
+		// client opened but never sent a request on, are closed forcibly.
+		err = srv.Close()
+	}
 	<-serveErr // http.ErrServerClosed
 	<-watchDone
 	return err
