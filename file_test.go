@@ -9,9 +9,15 @@ import (
 	"time"
 )
 
+// writeFile replaces path atomically, so a concurrent watcher never observes
+// a truncated, partially written file.
 func writeFile(t *testing.T, path, data string) {
 	t.Helper()
-	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
 		t.Fatal(err)
 	}
 }
