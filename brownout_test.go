@@ -1,6 +1,7 @@
 package brownout
 
 import (
+	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -123,8 +124,12 @@ func TestAllowPercent(t *testing.T) {
 }
 
 func TestAllowPercentDistribution(t *testing.T) {
+	// A fixed seed makes the outcome identical on every run, so this checks
+	// the shedding arithmetic without being at the mercy of chance.
+	rng := rand.New(rand.NewPCG(1, 2))
 	c := New()
-	mustSet(t, c, Rule{ID: "r", Path: "/x", AllowPercent: 50})
+	c.random = func() float64 { return rng.Float64() * 100 }
+	mustSet(t, c, Rule{ID: "r", Path: "/x", AllowPercent: 30})
 	h := c.Middleware(okHandler)
 
 	const n = 10000
@@ -134,8 +139,18 @@ func TestAllowPercentDistribution(t *testing.T) {
 			allowed++
 		}
 	}
-	if allowed < n*45/100 || allowed > n*55/100 {
-		t.Errorf("allowed %d of %d, want ~50%%", allowed, n)
+	if allowed < n*28/100 || allowed > n*32/100 {
+		t.Errorf("allowed %d of %d, want ~30%%", allowed, n)
+	}
+}
+
+func TestDefaultRandomRange(t *testing.T) {
+	// AllowPercent: 100 must always pass, which requires random() < 100.
+	c := New()
+	for range 100000 {
+		if v := c.random(); v < 0 || v >= 100 {
+			t.Fatalf("random() = %v, want [0, 100)", v)
+		}
 	}
 }
 

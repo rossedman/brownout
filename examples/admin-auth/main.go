@@ -37,12 +37,9 @@ func requireToken(token string, next http.Handler) http.Handler {
 	})
 }
 
-func main() {
-	token := os.Getenv("BROWNOUT_TOKEN")
-	if token == "" {
-		log.Fatal("set BROWNOUT_TOKEN")
-	}
-
+// newHandler serves the app at / and the token-protected admin API at
+// /_brownout/. The admin API is deliberately not wrapped in the middleware.
+func newHandler(token string) http.Handler {
 	c := brownout.New()
 
 	app := http.NewServeMux()
@@ -53,7 +50,15 @@ func main() {
 	root := http.NewServeMux()
 	root.Handle("/_brownout/", http.StripPrefix("/_brownout", requireToken(token, c.AdminHandler())))
 	root.Handle("/", c.Middleware(app))
+	return root
+}
+
+func main() {
+	token := os.Getenv("BROWNOUT_TOKEN")
+	if token == "" {
+		log.Fatal("set BROWNOUT_TOKEN")
+	}
 
 	log.Println("listening on :8080 (admin API at /_brownout/)")
-	log.Fatal(http.ListenAndServe(":8080", root))
+	log.Fatal(http.ListenAndServe(":8080", newHandler(token)))
 }

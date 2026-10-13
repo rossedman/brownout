@@ -19,4 +19,10 @@ jobs:
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       - run: go vet ./...
-      - run: go test -race ./...
+      - run: go test -race -shuffle=on ./...
+      - name: coverage (must stay at or above 90%)
+        run: |
+          go test -coverpkg=./... -coverprofile=cover.out ./... > /dev/null
+          total=$(go tool cover -func=cover.out | awk '/^total:/ {sub("%", "", $3); print $3}')
+          echo "total coverage: ${total}%"
+          awk -v t="$total" 'BEGIN { exit !(t >= 90) }' || { echo "::error::coverage ${total}% is below 90%"; exit 1; }

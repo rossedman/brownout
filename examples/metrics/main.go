@@ -45,7 +45,9 @@ func jsonResponder(w http.ResponseWriter, r *http.Request, rule brownout.Rule) {
 	})
 }
 
-func main() {
+// newServer returns the app handler and an admin handler that serves both the
+// brownout admin API and expvar's /debug/vars.
+func newServer() (app, admin http.Handler) {
 	c := brownout.New(
 		brownout.WithOnShed(func(r *http.Request, rule brownout.Rule) {
 			shedByRule.Add(rule.ID, 1)
@@ -53,14 +55,20 @@ func main() {
 		brownout.WithResponder(jsonResponder),
 	)
 
-	app := http.NewServeMux()
-	app.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "hello from %s\n", r.URL.Path)
 	})
 
-	admin := http.NewServeMux()
-	admin.Handle("/debug/vars", expvar.Handler())
-	admin.Handle("/", c.AdminHandler())
+	adminMux := http.NewServeMux()
+	adminMux.Handle("/debug/vars", expvar.Handler())
+	adminMux.Handle("/", c.AdminHandler())
+
+	return c.Middleware(mux), adminMux
+}
+
+func main() {
+	app, admin := newServer()
 
 	go func() {
 		log.Println("admin API and /debug/vars on :9090")
@@ -68,5 +76,5 @@ func main() {
 	}()
 
 	log.Println("app listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", c.Middleware(app)))
+	log.Fatal(http.ListenAndServe(":8080", app))
 }
