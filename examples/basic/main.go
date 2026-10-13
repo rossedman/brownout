@@ -18,23 +18,30 @@ import (
 	"github.com/rossedman/brownout"
 )
 
-func main() {
+// newServer returns the app handler, wrapped in brownout middleware, and the
+// admin API handler that controls it.
+func newServer() (app, admin http.Handler) {
 	c := brownout.New(
 		brownout.WithOnShed(func(r *http.Request, rule brownout.Rule) {
 			log.Printf("brownout: shed %s %s (rule %q)", r.Method, r.URL.Path, rule.ID)
 		}),
 	)
 
-	app := http.NewServeMux()
-	app.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "hello from %s\n", r.URL.Path)
 	})
+	return c.Middleware(mux), c.AdminHandler()
+}
+
+func main() {
+	app, admin := newServer()
 
 	go func() {
 		log.Println("admin API listening on :9090")
-		log.Fatal(http.ListenAndServe(":9090", c.AdminHandler()))
+		log.Fatal(http.ListenAndServe(":9090", admin))
 	}()
 
 	log.Println("app listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", c.Middleware(app)))
+	log.Fatal(http.ListenAndServe(":8080", app))
 }

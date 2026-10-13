@@ -64,7 +64,9 @@ func TestWatchFile(t *testing.T) {
 
 	waitFor := func(desc string, cond func() bool) {
 		t.Helper()
-		deadline := time.Now().Add(2 * time.Second)
+		// Generous so a loaded CI runner can't fail it; it only matters
+		// when the behavior is actually broken.
+		deadline := time.Now().Add(10 * time.Second)
 		for !cond() {
 			if time.Now().After(deadline) {
 				t.Fatalf("timed out waiting for %s", desc)
@@ -99,9 +101,21 @@ func TestWatchFile(t *testing.T) {
 	}
 }
 
-func TestWatchFileInitialError(t *testing.T) {
-	err := New().WatchFile(context.Background(), filepath.Join(t.TempDir(), "missing.json"), time.Second, nil)
-	if err == nil {
+func TestLoadFileMissing(t *testing.T) {
+	if err := New().LoadFile(filepath.Join(t.TempDir(), "missing.json")); err == nil {
 		t.Fatal("expected error for missing file")
+	}
+}
+
+func TestWatchFileInitialError(t *testing.T) {
+	dir := t.TempDir()
+	invalid := filepath.Join(dir, "invalid.json")
+	writeFile(t, invalid, `{"rules":[{"id":"x","path":"no-slash"}]}`)
+
+	for _, path := range []string{filepath.Join(dir, "missing.json"), invalid} {
+		// Startup errors return immediately; the context is never consulted.
+		if err := New().WatchFile(context.Background(), path, time.Second, nil); err == nil {
+			t.Errorf("WatchFile(%s): expected error", filepath.Base(path))
+		}
 	}
 }

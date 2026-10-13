@@ -16,7 +16,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -24,22 +26,26 @@ import (
 	"github.com/rossedman/brownout"
 )
 
-func main() {
-	rulesPath := flag.String("rules", "rules.json", "path to the brownout rules file")
-	interval := flag.Duration("interval", 2*time.Second, "how often to check the rules file")
-	flag.Parse()
+// shutdownGrace is how long in-flight requests get to finish on shutdown.
+var shutdownGrace = 5 * time.Second
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
+// run serves the app on ln with rules loaded from rulesPath, reloading them
+// every interval, until ctx is canceled. It returns once the server and the
+// file watcher have both stopped.
+func run(ctx context.Context, ln net.Listener, rulesPath string, interval time.Duration) error {
 	c := brownout.New()
 
 	// Load once up front so a bad file fails startup loudly, then watch.
-	if err := c.LoadFile(*rulesPath); err != nil {
-		log.Fatal(err)
+	if err := c.LoadFile(rulesPath); err != nil {
+		return err
 	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	watchDone := make(chan struct{})
 	go func() {
-		err := c.WatchFile(ctx, *rulesPath, *interval, func(err error) {
+		defer close(watchDone)
+		err := c.WatchFile(ctx, rulesPath, interval, func(err error) {
 			log.Printf("brownout: keeping previous rules: %v", err)
 		})
 		if err != nil && !errors.Is(err, context.Canceled) {
@@ -51,17 +57,55 @@ func main() {
 	app.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "hello from %s\n", r.URL.Path)
 	})
+	srv := &http.Server{Handler: c.Middleware(app)}
 
-	srv := &http.Server{Addr: ":8080", Handler: c.Middleware(app)}
-	go func() {
-		<-ctx.Done()
-		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = srv.Shutdown(shutdown)
-	}()
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- srv.Serve(ln) }()
 
-	log.Printf("app listening on :8080, watching %s", *rulesPath)
-	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+	select {
+	case err := <-serveErr:
+		cancel()
+		<-watchDone
+		return err
+	case <-ctx.Done():
+	}
+
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), shutdownGrace)
+	defer cancelShutdown()
+	err := srv.Shutdown(shutdownCtx)
+	if errors.Is(err, context.DeadlineExceeded) {
+		// Connections still open after the grace period, including ones a
+		// client opened but never sent a request on, are closed forcibly.
+		err = srv.Close()
+	}
+	<-serveErr // http.ErrServerClosed
+	<-watchDone
+	return err
+}
+
+// cli parses args, starts listening and runs until ctx is canceled.
+func cli(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("filewatch", flag.ContinueOnError)
+	addr := fs.String("addr", ":8080", "address to listen on")
+	rulesPath := fs.String("rules", "rules.json", "path to the brownout rules file")
+	interval := fs.Duration("interval", 2*time.Second, "how often to check the rules file")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	ln, err := net.Listen("tcp", *addr)
+	if err != nil {
+		return err
+	}
+	log.Printf("app listening on %s, watching %s", ln.Addr(), *rulesPath)
+	return run(ctx, ln, *rulesPath, *interval)
+}
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	err := cli(ctx, os.Args[1:])
+	stop()
+	if err != nil && !errors.Is(err, flag.ErrHelp) {
 		log.Fatal(err)
 	}
 }

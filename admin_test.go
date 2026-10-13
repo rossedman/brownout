@@ -108,6 +108,8 @@ func TestAdminRejectsBadInput(t *testing.T) {
 		{"PUT", "/rules/r", `{"path":"/x","ttl":"soon"}`},
 		{"PUT", "/rules/r", `{"path":"/x","ttl":"5m","expires_at":"2030-01-01T00:00:00Z"}`},
 		{"PUT", "/rules", `{"rules":[{"id":"a","path":"/a"},{"id":"a","path":"/b"}]}`},
+		{"PUT", "/rules", `{"rules":`},
+		{"PUT", "/rules", `{"rules":[{"id":"a","path":"/a","ttl":"-1m"}]}`},
 	}
 	for _, tc := range cases {
 		if rec := adminDo(t, admin, tc.method, tc.path, tc.body); rec.Code != http.StatusBadRequest {

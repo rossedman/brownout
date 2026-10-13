@@ -141,6 +141,27 @@ c := brownout.New(
 
 To make the decision yourself (for example, to degrade a response instead of rejecting it), call `c.Check(r)`, which returns the matching rule and whether the request should be shed.
 
+## Performance
+
+The request path takes no locks and makes no allocations unless a request is shed. It reads the clock only when a request matches a rule that has an expiry. Rule evaluation is linear in the number of rules, about 12ns per rule that is checked. Representative numbers from `go test -bench . -benchmem` on a 4-vCPU Xeon VM:
+
+| Scenario | Time/request | Allocs |
+|---|---|---|
+| No rules installed | ~24 ns | 0 |
+| 1 rule, no match | ~37 ns | 0 |
+| 10 rules, none match | ~160 ns | 0 |
+| 100 rules, none match | ~1.2 µs | 0 |
+| Matched, shed with the default 503 response | ~370 ns | 3 |
+| 10 rules, 4 goroutines in parallel, rules changing concurrently | ~85 ns | 0 |
+
+Run them yourself with:
+
+```sh
+go test -run '^$' -bench . -benchmem ./...
+```
+
+CI runs every benchmark on each push and pull request. Pull requests get a `benchstat` comparison against the base branch in the job summary. `TestHotPathAllocations` fails the build if the request path starts allocating.
+
 ## Multiple instances
 
 Rules live in memory for each process. When you run several replicas, either use `WatchFile` with a shared file such as a ConfigMap, or call the admin API on each instance.

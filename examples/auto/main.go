@@ -32,7 +32,7 @@ import (
 const (
 	ruleID    = "auto-recommendations"
 	threshold = 3
-	probeTick = time.Second
+	ruleTTL   = time.Minute
 )
 
 // dependency stands in for a real downstream service.
@@ -45,9 +45,48 @@ func (d *dependency) Ping(ctx context.Context) error {
 	return nil
 }
 
-func watchDependency(ctx context.Context, c *brownout.Controller, dep *dependency) {
-	var failures, successes int
-	ticker := time.NewTicker(probeTick)
+// healthWatcher turns a stream of probe results into brownout rule changes.
+type healthWatcher struct {
+	c                   *brownout.Controller
+	now                 func() time.Time
+	failures, successes int
+}
+
+// observe records one probe result and sets or removes the brownout rule
+// once threshold consecutive results agree.
+func (h *healthWatcher) observe(probeErr error) {
+	if probeErr != nil {
+		h.failures, h.successes = h.failures+1, 0
+	} else {
+		h.failures, h.successes = 0, h.successes+1
+	}
+	_, active := h.c.Rule(ruleID)
+
+	switch {
+	case h.failures >= threshold:
+		// Re-set on every failed probe to keep extending the TTL.
+		err := h.c.Set(brownout.Rule{
+			ID:                ruleID,
+			Path:              "/recommendations/*",
+			RetryAfterSeconds: 30,
+			Message:           "Recommendations are temporarily unavailable.",
+			ExpiresAt:         h.now().Add(ruleTTL),
+		})
+		if err != nil {
+			log.Printf("auto-brownout: %v", err)
+		} else if !active {
+			log.Printf("auto-brownout: dependency unhealthy, shedding /recommendations/*")
+		}
+	case h.successes >= threshold && active:
+		h.c.Remove(ruleID)
+		log.Printf("auto-brownout: dependency recovered, restoring /recommendations/*")
+	}
+}
+
+// watchDependency probes dep every tick until ctx is canceled.
+func watchDependency(ctx context.Context, c *brownout.Controller, dep *dependency, tick time.Duration) {
+	h := &healthWatcher{c: c, now: time.Now}
+	ticker := time.NewTicker(tick)
 	defer ticker.Stop()
 
 	for {
@@ -58,56 +97,34 @@ func watchDependency(ctx context.Context, c *brownout.Controller, dep *dependenc
 		}
 
 		probeCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
-		err := dep.Ping(probeCtx)
+		h.observe(dep.Ping(probeCtx))
 		cancel()
-
-		if err != nil {
-			failures, successes = failures+1, 0
-		} else {
-			failures, successes = 0, successes+1
-		}
-		_, active := c.Rule(ruleID)
-
-		switch {
-		case failures >= threshold:
-			// Re-set on every failed probe to keep extending the TTL.
-			err := c.Set(brownout.Rule{
-				ID:                ruleID,
-				Path:              "/recommendations/*",
-				RetryAfterSeconds: 30,
-				Message:           "Recommendations are temporarily unavailable.",
-				ExpiresAt:         time.Now().Add(time.Minute),
-			})
-			if err != nil {
-				log.Printf("auto-brownout: %v", err)
-			} else if !active {
-				log.Printf("auto-brownout: dependency unhealthy, shedding /recommendations/*")
-			}
-		case successes >= threshold && active:
-			c.Remove(ruleID)
-			log.Printf("auto-brownout: dependency recovered, restoring /recommendations/*")
-		}
 	}
+}
+
+// newApp serves the recommendations endpoint plus debug endpoints that flip
+// the simulated dependency between healthy and failing.
+func newApp(c *brownout.Controller, dep *dependency) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/recommendations/{user}", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "recommendations for user %s: [...]\n", r.PathValue("user"))
+	})
+	mux.HandleFunc("POST /debug/dep/fail", func(w http.ResponseWriter, r *http.Request) {
+		dep.down.Store(true)
+		fmt.Fprintln(w, "dependency is now failing")
+	})
+	mux.HandleFunc("POST /debug/dep/recover", func(w http.ResponseWriter, r *http.Request) {
+		dep.down.Store(false)
+		fmt.Fprintln(w, "dependency is now healthy")
+	})
+	return c.Middleware(mux)
 }
 
 func main() {
 	c := brownout.New()
 	dep := &dependency{}
-	go watchDependency(context.Background(), c, dep)
-
-	app := http.NewServeMux()
-	app.HandleFunc("/recommendations/{user}", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "recommendations for user %s: [...]\n", r.PathValue("user"))
-	})
-	app.HandleFunc("POST /debug/dep/fail", func(w http.ResponseWriter, r *http.Request) {
-		dep.down.Store(true)
-		fmt.Fprintln(w, "dependency is now failing")
-	})
-	app.HandleFunc("POST /debug/dep/recover", func(w http.ResponseWriter, r *http.Request) {
-		dep.down.Store(false)
-		fmt.Fprintln(w, "dependency is now healthy")
-	})
+	go watchDependency(context.Background(), c, dep, time.Second)
 
 	log.Println("listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", c.Middleware(app)))
+	log.Fatal(http.ListenAndServe(":8080", newApp(c, dep)))
 }
