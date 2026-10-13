@@ -165,3 +165,7 @@ CI runs every benchmark on each push and pull request. Pull requests get a `benc
 ## Multiple instances
 
 Rules live in memory for each process. When you run several replicas, either use `WatchFile` with a shared file such as a ConfigMap, or call the admin API on each instance.
+
+## License
+
+[MIT](LICENSE)
