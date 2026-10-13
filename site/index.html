@@ -236,7 +236,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space
 <section class="alt">
   <div class="wrap">
     <div class="grid">
-      <div class="card"><span class="icon">⚡</span><h3>Takes effect on the next request</h3><p>Rules are swapped atomically. The request path takes no locks and costs nothing when no rule matches.</p></div>
+      <div class="card"><span class="icon">⚡</span><h3>Takes effect on the next request</h3><p>Rules are swapped atomically. The request path takes no locks and doesn't allocate. With a handful of rules it adds well under a microsecond per request.</p></div>
       <div class="card"><span class="icon">🎚️</span><h3>Partial brownouts</h3><p>Let a set percentage of traffic through, so you can reduce load without switching a feature off entirely.</p></div>
       <div class="card"><span class="icon">⏱️</span><h3>Rules that expire</h3><p>Give a rule a TTL and it lifts by itself, so a forgotten brownout doesn't outlast the incident.</p></div>
       <div class="card"><span class="icon">📦</span><h3>Standard library only</h3><p>Plain <code>http.Handler</code> middleware with no dependencies. It works with any router built on <code>net/http</code>.</p></div>

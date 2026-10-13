@@ -316,3 +316,50 @@ func TestConcurrentUpdates(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestClockReadOnlyWhenNeeded(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	reads := 0
+	c := New(WithClock(func() time.Time { reads++; return now }))
+	h := c.Middleware(okHandler)
+
+	mustSet(t, c, Rule{ID: "plain", Path: "/plain"})
+	mustSet(t, c, Rule{ID: "exp1", Path: "/exp/*", Methods: []string{"POST"}, ExpiresAt: now.Add(-time.Minute)})
+	mustSet(t, c, Rule{ID: "exp2", Path: "/exp/*", ExpiresAt: now.Add(time.Minute)})
+	reads = 0
+
+	do(h, "GET", "/plain")
+	do(h, "GET", "/unmatched")
+	if reads != 0 {
+		t.Errorf("clock read %d times for requests matching no expiring rule, want 0", reads)
+	}
+
+	// Both expiring rules match this request; the clock is read once.
+	rec := do(h, "POST", "/exp/x")
+	if reads != 1 {
+		t.Errorf("clock read %d times, want 1", reads)
+	}
+	// exp1 has expired, so evaluation falls through to exp2.
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want 503 from exp2", rec.Code)
+	}
+}
+
+func TestRuleMatches(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	r := Rule{ID: "r", Path: "/x/*", Methods: []string{"GET"}, ExpiresAt: now.Add(time.Minute)}
+	get := httptest.NewRequest("GET", "/x/1", nil)
+
+	if !r.Matches(get, now) {
+		t.Error("want match before expiry")
+	}
+	if r.Matches(get, now.Add(time.Minute)) {
+		t.Error("want no match at expiry")
+	}
+	if r.Matches(httptest.NewRequest("POST", "/x/1", nil), now) {
+		t.Error("want no match for other method")
+	}
+	if r.Matches(httptest.NewRequest("GET", "/y", nil), now) {
+		t.Error("want no match for other path")
+	}
+}

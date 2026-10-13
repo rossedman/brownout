@@ -90,16 +90,19 @@ func (r Rule) Validate() error {
 // Matches reports whether the rule applies to the request at time now,
 // ignoring AllowPercent.
 func (r Rule) Matches(req *http.Request, now time.Time) bool {
-	if r.expired(now) {
-		return false
-	}
+	return r.matchesRequest(req) && !r.expired(now)
+}
+
+// matchesRequest reports whether the rule's method and path match req,
+// ignoring expiry.
+func (r *Rule) matchesRequest(req *http.Request) bool {
 	if len(r.Methods) > 0 && !slices.Contains(r.Methods, req.Method) {
 		return false
 	}
 	return matchPath(r.Path, req.URL.Path)
 }
 
-func (r Rule) expired(now time.Time) bool {
+func (r *Rule) expired(now time.Time) bool {
 	return !r.ExpiresAt.IsZero() && !now.Before(r.ExpiresAt)
 }
 
@@ -206,21 +209,30 @@ func (c *Controller) Middleware(next http.Handler) http.Handler {
 // request through (per AllowPercent), later rules are not consulted.
 func (c *Controller) Check(req *http.Request) (Rule, bool) {
 	rules := *c.rules.Load()
-	if len(rules) == 0 {
-		return Rule{}, false
-	}
-	now := c.now()
-	for _, r := range rules {
-		if !r.Matches(req, now) {
+	// Reading the clock is relatively expensive, so do it only once a
+	// request matches a rule that has an expiry.
+	var now time.Time
+	for i := range rules {
+		r := &rules[i] // by pointer: Rule is large, and rules are immutable
+		if !r.matchesRequest(req) {
 			continue
+		}
+		if !r.ExpiresAt.IsZero() {
+			if now.IsZero() {
+				now = c.now()
+			}
+			if r.expired(now) {
+				continue
+			}
 		}
 		if r.AllowPercent > 0 && c.random() < r.AllowPercent {
 			return Rule{}, false
 		}
-		if r.StatusCode == 0 {
-			r.StatusCode = c.defaultStatus
+		out := r.clone()
+		if out.StatusCode == 0 {
+			out.StatusCode = c.defaultStatus
 		}
-		return r.clone(), true
+		return out, true
 	}
 	return Rule{}, false
 }
