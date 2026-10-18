@@ -130,6 +130,5 @@ func main() {
 	go watchDependency(context.Background(), c, dep, time.Second)
 
 	log.Println("listening on :8080")
-	srv := &http.Server{Addr: ":8080", Handler: newApp(c, dep), ReadHeaderTimeout: 10 * time.Second}
-	log.Fatal(srv.ListenAndServe())
+	log.Fatal((&http.Server{Addr: ":8080", Handler: newApp(c, dep), ReadHeaderTimeout: 10 * time.Second}).ListenAndServe())
 }

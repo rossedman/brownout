@@ -62,6 +62,5 @@ func main() {
 	}
 
 	log.Println("listening on :8080 (admin API at /_brownout/)")
-	srv := &http.Server{Addr: ":8080", Handler: newHandler(token), ReadHeaderTimeout: 10 * time.Second}
-	log.Fatal(srv.ListenAndServe())
+	log.Fatal((&http.Server{Addr: ":8080", Handler: newHandler(token), ReadHeaderTimeout: 10 * time.Second}).ListenAndServe())
 }

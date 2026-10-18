@@ -41,11 +41,9 @@ func main() {
 
 	go func() {
 		log.Println("admin API listening on :9090")
-		srv := &http.Server{Addr: ":9090", Handler: admin, ReadHeaderTimeout: 10 * time.Second}
-		log.Fatal(srv.ListenAndServe())
+		log.Fatal((&http.Server{Addr: ":9090", Handler: admin, ReadHeaderTimeout: 10 * time.Second}).ListenAndServe())
 	}()
 
 	log.Println("app listening on :8080")
-	srv := &http.Server{Addr: ":8080", Handler: app, ReadHeaderTimeout: 10 * time.Second}
-	log.Fatal(srv.ListenAndServe())
+	log.Fatal((&http.Server{Addr: ":8080", Handler: app, ReadHeaderTimeout: 10 * time.Second}).ListenAndServe())
 }
