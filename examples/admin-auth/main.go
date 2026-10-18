@@ -18,9 +18,11 @@ package main
 import (
 	"crypto/subtle"
 	"fmt"
+	"html"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/rossedman/brownout"
 )
@@ -44,7 +46,7 @@ func newHandler(token string) http.Handler {
 
 	app := http.NewServeMux()
 	app.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "hello from %s\n", r.URL.Path)
+		fmt.Fprintf(w, "hello from %s\n", html.EscapeString(r.URL.Path))
 	})
 
 	root := http.NewServeMux()
@@ -60,5 +62,5 @@ func main() {
 	}
 
 	log.Println("listening on :8080 (admin API at /_brownout/)")
-	log.Fatal(http.ListenAndServe(":8080", newHandler(token)))
+	log.Fatal((&http.Server{Addr: ":8080", Handler: newHandler(token), ReadHeaderTimeout: 10 * time.Second}).ListenAndServe())
 }

@@ -53,7 +53,7 @@ jobs:
         run: |
           git worktree add ../base "origin/${{ github.base_ref }}"
           cd ../base
-          if ls *_test.go >/dev/null 2>&1 && grep -lq 'func Benchmark' *_test.go; then
+          if ls ./*_test.go >/dev/null 2>&1 && grep -lq 'func Benchmark' ./*_test.go; then
             go test -run '^$' -bench . -benchmem -benchtime=200ms -count=6 ./... > "$GITHUB_WORKSPACE/bench-base.txt" || true
           fi
 

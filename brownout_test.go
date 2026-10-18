@@ -348,7 +348,7 @@ func TestClockReadOnlyWhenNeeded(t *testing.T) {
 func TestRuleMatches(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	r := Rule{ID: "r", Path: "/x/*", Methods: []string{"GET"}, ExpiresAt: now.Add(time.Minute)}
-	get := httptest.NewRequest("GET", "/x/1", nil)
+	get := httptest.NewRequest(http.MethodGet, "/x/1", nil)
 
 	if !r.Matches(get, now) {
 		t.Error("want match before expiry")
@@ -356,10 +356,10 @@ func TestRuleMatches(t *testing.T) {
 	if r.Matches(get, now.Add(time.Minute)) {
 		t.Error("want no match at expiry")
 	}
-	if r.Matches(httptest.NewRequest("POST", "/x/1", nil), now) {
+	if r.Matches(httptest.NewRequest(http.MethodPost, "/x/1", nil), now) {
 		t.Error("want no match for other method")
 	}
-	if r.Matches(httptest.NewRequest("GET", "/y", nil), now) {
+	if r.Matches(httptest.NewRequest(http.MethodGet, "/y", nil), now) {
 		t.Error("want no match for other path")
 	}
 }

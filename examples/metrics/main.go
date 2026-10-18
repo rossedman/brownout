@@ -17,9 +17,11 @@ import (
 	"encoding/json"
 	"expvar"
 	"fmt"
+	"html"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/rossedman/brownout"
 )
@@ -57,7 +59,7 @@ func newServer() (app, admin http.Handler) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "hello from %s\n", r.URL.Path)
+		fmt.Fprintf(w, "hello from %s\n", html.EscapeString(r.URL.Path))
 	})
 
 	adminMux := http.NewServeMux()
@@ -72,9 +74,9 @@ func main() {
 
 	go func() {
 		log.Println("admin API and /debug/vars on :9090")
-		log.Fatal(http.ListenAndServe("127.0.0.1:9090", admin))
+		log.Fatal((&http.Server{Addr: "127.0.0.1:9090", Handler: admin, ReadHeaderTimeout: 10 * time.Second}).ListenAndServe())
 	}()
 
 	log.Println("app listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", app))
+	log.Fatal((&http.Server{Addr: ":8080", Handler: app, ReadHeaderTimeout: 10 * time.Second}).ListenAndServe())
 }
