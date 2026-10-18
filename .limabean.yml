@@ -1,0 +1,33 @@
+# VM for trying brownout: `limabean up` clones this repository, builds
+# examples/basic and runs it as a service, so it is back after a restart.
+#
+#   curl localhost:8080/reports/q3                     # 200
+#   curl -X PUT localhost:9090/rules/reports \
+#        -d '{"path":"/reports/*","ttl":"10m","retry_after_seconds":60}'
+#   curl -i localhost:8080/reports/q3                  # 503, Retry-After: 60
+#
+# Logs: limabean ssh brownout 'journalctl -u brownout-basic -f'
+name: brownout
+ports: [8080, 9090]
+setup: |
+  go build -o bin/basic ./examples/basic
+  sudo tee /etc/systemd/system/brownout-basic.service >/dev/null <<EOF
+  [Unit]
+  Description=brownout basic example (app :8080, admin :9090)
+  After=network-online.target
+
+  [Service]
+  User=$(id -un)
+  WorkingDirectory=$PWD
+  ExecStart=$PWD/bin/basic
+  Restart=on-failure
+
+  [Install]
+  WantedBy=multi-user.target
+  EOF
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now brownout-basic
+  for _ in $(seq 20); do curl -fsS localhost:8080/ && exit 0; sleep 0.5; done
+  echo "brownout-basic did not answer on :8080" >&2
+  sudo journalctl -u brownout-basic --no-pager -n 50 >&2
+  exit 1
