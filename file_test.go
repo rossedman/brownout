@@ -2,6 +2,7 @@ package brownout
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -96,7 +97,7 @@ func TestWatchFile(t *testing.T) {
 	}
 
 	cancel()
-	if err := <-done; err != context.Canceled {
+	if err := <-done; !errors.Is(err, context.Canceled) {
 		t.Errorf("WatchFile returned %v, want context.Canceled", err)
 	}
 }

@@ -65,7 +65,7 @@ func BenchmarkMiddleware(b *testing.B) {
 			c := New()
 			mustReplace(b, c, tc.rules)
 			h := c.Middleware(noop)
-			req := httptest.NewRequest("GET", "/api/orders", nil)
+			req := httptest.NewRequest(http.MethodGet, "/api/orders", nil)
 			w := newDiscardWriter()
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -82,7 +82,7 @@ func BenchmarkCheck(b *testing.B) {
 		b.Run(fmt.Sprintf("no-match/%d", n), func(b *testing.B) {
 			c := New()
 			mustReplace(b, c, nRules(n))
-			req := httptest.NewRequest("GET", "/api/orders", nil)
+			req := httptest.NewRequest(http.MethodGet, "/api/orders", nil)
 			b.ReportAllocs()
 			b.ResetTimer()
 			for range b.N {
@@ -129,7 +129,7 @@ func BenchmarkMiddlewareParallel(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			b.RunParallel(func(pb *testing.PB) {
-				req := httptest.NewRequest("GET", "/api/orders", nil)
+				req := httptest.NewRequest(http.MethodGet, "/api/orders", nil)
 				w := newDiscardWriter()
 				for pb.Next() {
 					h.ServeHTTP(w, req)
@@ -175,7 +175,7 @@ func BenchmarkAdmin(b *testing.B) {
 		c := New()
 		mustReplace(b, c, nRules(10))
 		h := c.AdminHandler()
-		req := httptest.NewRequest("GET", "/rules", nil)
+		req := httptest.NewRequest(http.MethodGet, "/rules", nil)
 		b.ReportAllocs()
 		b.ResetTimer()
 		for range b.N {
@@ -189,7 +189,7 @@ func BenchmarkAdmin(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for range b.N {
-			h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("PUT", "/rules/reports", strings.NewReader(body)))
+			h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPut, "/rules/reports", strings.NewReader(body)))
 		}
 	})
 }
@@ -236,7 +236,7 @@ func TestHotPathAllocations(t *testing.T) {
 			t.Fatal(err)
 		}
 		h := c.Middleware(noop)
-		req := httptest.NewRequest("GET", "/api/orders", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/orders", nil)
 		w := newDiscardWriter()
 		if allocs := testing.AllocsPerRun(1000, func() { h.ServeHTTP(w, req) }); allocs != 0 {
 			t.Errorf("%s: %v allocs per request, want 0", tc.name, allocs)

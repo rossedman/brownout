@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"html"
 	"log"
 	"net/http"
 	"time"
@@ -45,13 +46,13 @@ func newServer() (app, admin http.Handler) {
 
 		if rule, degraded := features.Check(r); degraded {
 			w.Header().Set("X-Degraded", rule.ID)
-			fmt.Fprintf(w, "Product %s\n", id)
+			fmt.Fprintf(w, "Product %s\n", html.EscapeString(id))
 			return
 		}
 		fmt.Fprintln(w, personalize(id))
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "hello from %s\n", r.URL.Path)
+		fmt.Fprintf(w, "hello from %s\n", html.EscapeString(r.URL.Path))
 	})
 
 	adminMux := http.NewServeMux()
@@ -66,9 +67,11 @@ func main() {
 
 	go func() {
 		log.Println("admin API on :9090 (feature rules at /rules, hard shedding at /shedding/rules)")
-		log.Fatal(http.ListenAndServe("127.0.0.1:9090", admin))
+		srv := &http.Server{Addr: "127.0.0.1:9090", Handler: admin, ReadHeaderTimeout: 10 * time.Second}
+		log.Fatal(srv.ListenAndServe())
 	}()
 
 	log.Println("app listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", app))
+	srv := &http.Server{Addr: ":8080", Handler: app, ReadHeaderTimeout: 10 * time.Second}
+	log.Fatal(srv.ListenAndServe())
 }

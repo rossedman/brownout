@@ -76,7 +76,7 @@ func ExampleController_AdminHandler() {
 
 	body := `{"path": "/search", "allow_percent": 20, "ttl": "15m"}`
 	rec := httptest.NewRecorder()
-	admin.ServeHTTP(rec, httptest.NewRequest("PUT", "/admin/brownout/rules/search", strings.NewReader(body)))
+	admin.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/admin/brownout/rules/search", strings.NewReader(body)))
 	fmt.Println(rec.Code)
 
 	r, _ := c.Rule("search")
@@ -99,7 +99,7 @@ func ExampleController_Check() {
 	}
 
 	rec := httptest.NewRecorder()
-	handler(rec, httptest.NewRequest("GET", "/products/7", nil))
+	handler(rec, httptest.NewRequest(http.MethodGet, "/products/7", nil))
 	fmt.Println(rec.Code, rec.Body)
 	// Output:
 	// 200 generic page (degraded by personalization)
@@ -114,7 +114,7 @@ func ExampleWithResponder() {
 	_ = c.Set(brownout.Rule{ID: "export", Path: "/export", StatusCode: http.StatusTooManyRequests})
 
 	rec := httptest.NewRecorder()
-	c.Middleware(http.NotFoundHandler()).ServeHTTP(rec, httptest.NewRequest("GET", "/export", nil))
+	c.Middleware(http.NotFoundHandler()).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/export", nil))
 	fmt.Println(rec.Code, rec.Body)
 	// Output:
 	// 429 {"error":"brownout","rule":"export"}

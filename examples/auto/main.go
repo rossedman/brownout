@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"log"
 	"net/http"
 	"sync/atomic"
@@ -39,6 +40,9 @@ const (
 type dependency struct{ down atomic.Bool }
 
 func (d *dependency) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if d.down.Load() {
 		return errors.New("recommendations: connection refused")
 	}
@@ -107,7 +111,7 @@ func watchDependency(ctx context.Context, c *brownout.Controller, dep *dependenc
 func newApp(c *brownout.Controller, dep *dependency) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/recommendations/{user}", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "recommendations for user %s: [...]\n", r.PathValue("user"))
+		fmt.Fprintf(w, "recommendations for user %s: [...]\n", html.EscapeString(r.PathValue("user")))
 	})
 	mux.HandleFunc("POST /debug/dep/fail", func(w http.ResponseWriter, r *http.Request) {
 		dep.down.Store(true)
@@ -126,5 +130,6 @@ func main() {
 	go watchDependency(context.Background(), c, dep, time.Second)
 
 	log.Println("listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", newApp(c, dep)))
+	srv := &http.Server{Addr: ":8080", Handler: newApp(c, dep), ReadHeaderTimeout: 10 * time.Second}
+	log.Fatal(srv.ListenAndServe())
 }

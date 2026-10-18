@@ -15,6 +15,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html"
 	"log"
 	"net"
 	"net/http"
@@ -55,9 +56,9 @@ func run(ctx context.Context, ln net.Listener, rulesPath string, interval time.D
 
 	app := http.NewServeMux()
 	app.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "hello from %s\n", r.URL.Path)
+		fmt.Fprintf(w, "hello from %s\n", html.EscapeString(r.URL.Path))
 	})
-	srv := &http.Server{Handler: c.Middleware(app)}
+	srv := &http.Server{Handler: c.Middleware(app), ReadHeaderTimeout: 10 * time.Second}
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
