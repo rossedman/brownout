@@ -79,7 +79,9 @@ func run(ctx context.Context, ln net.Listener, rulesPath string, interval time.D
 		// client opened but never sent a request on, are closed forcibly.
 		err = srv.Close()
 	}
-	<-serveErr // http.ErrServerClosed
+	if serr := <-serveErr; err == nil && !errors.Is(serr, http.ErrServerClosed) {
+		err = serr
+	}
 	<-watchDone
 	return err
 }
