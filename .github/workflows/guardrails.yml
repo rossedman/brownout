@@ -1,0 +1,28 @@
+name: Guardrails
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guardrails-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # --base needs the base branch's history
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      # On pull requests this gates only the changed files against the base
+      # branch; on pushes it gates every package.
+      - uses: rossedman/guardrails@930ad8d8abfbc536f9dbe02df92902c2290163a5 # v0.4.0

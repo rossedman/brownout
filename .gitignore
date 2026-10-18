@@ -1,3 +1,8 @@
 *.test
 *.out
 /basic
+/bin/
+
+# Share Guardrails rules and permission denies (overrides a global .claude ignore).
+!/.claude/
+/.claude/settings.local.json
