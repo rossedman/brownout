@@ -26,3 +26,5 @@ jobs:
       # On pull requests this gates only the changed files against the base
       # branch; on pushes it gates every package.
       - uses: rossedman/guardrails@930ad8d8abfbc536f9dbe02df92902c2290163a5 # v0.4.0
+        with:
+          version: 0.4.0 # match the action; the default "latest" can lack binaries
