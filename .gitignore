@@ -6,3 +6,10 @@
 # Share Guardrails rules and permission denies (overrides a global .claude ignore).
 !/.claude/
 /.claude/settings.local.json
+bench.txt
+bench.old.txt
+
+# Share the gopls settings (overrides a global .vscode ignore).
+!/.vscode/
+/.vscode/*
+!/.vscode/settings.json
