@@ -28,6 +28,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 )
 
 // Rule describes an endpoint (or group of endpoints) to brown out.
@@ -71,6 +72,10 @@ func (r Rule) Validate() error {
 	switch {
 	case r.ID == "":
 		return errors.New("brownout: rule id is required")
+	case !utf8.ValidString(r.ID):
+		// JSON can't represent it, so the admin API would report a
+		// different ID than the one stored.
+		return fmt.Errorf("brownout: rule id %q is not valid UTF-8", r.ID)
 	case r.Path == "":
 		return errors.New("brownout: rule path is required")
 	case r.Path != "*" && !strings.HasPrefix(r.Path, "/"):
