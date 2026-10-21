@@ -1,8 +1,35 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries and coverage profiles
 *.test
 *.out
+coverage.*
+!coverage.go
+*.coverprofile
+profile.cov
+
+# Go workspace file
+go.work
+go.work.sum
+
+.env
+.idea/
+.DS_Store
 /basic
 /bin/
 
 # Share Guardrails rules and permission denies (overrides a global .claude ignore).
 !/.claude/
 /.claude/settings.local.json
+bench.txt
+bench.old.txt
+
+# Share the gopls settings (overrides a global .vscode ignore).
+!/.vscode/
+/.vscode/*
+!/.vscode/settings.json

@@ -102,6 +102,7 @@ func TestAdminRejectsBadInput(t *testing.T) {
 	admin := New().AdminHandler()
 	cases := []struct{ method, path, body string }{
 		{"PUT", "/rules/r", `not json`},
+		{"PUT", "/rules/%A4", `{"path":"/x"}`},
 		{"PUT", "/rules/r", `{"path":"nope"}`},
 		{"PUT", "/rules/r", `{"path":"/x","bogus":1}`},
 		{"PUT", "/rules/r", `{"id":"other","path":"/x"}`},

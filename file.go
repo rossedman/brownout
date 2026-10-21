@@ -20,6 +20,8 @@ func (c *Controller) LoadFile(path string) error {
 	return c.loadBytes(path, data)
 }
 
+// loadBytes parses data as a rules file and replaces the controller's rules
+// with it. path is used only in error messages.
 func (c *Controller) loadBytes(path string, data []byte) error {
 	var doc rulesDoc
 	dec := json.NewDecoder(bytes.NewReader(data))

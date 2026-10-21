@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest a change to brownout.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do during a brownout that brownout makes hard today?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: The API, rule field or admin endpoint you'd like, with a short example.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you've tried, such as a custom Responder or a second Controller.

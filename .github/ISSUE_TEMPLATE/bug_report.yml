@@ -1,0 +1,47 @@
+name: Bug report
+description: Something in brownout doesn't behave as documented.
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: brownout version
+      description: The version from go.mod, or a commit.
+      placeholder: v0.1.2
+    validations:
+      required: true
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version and OS
+      description: Output of `go version`.
+      placeholder: go version go1.27.2 linux/amd64
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The rules you set and the requests you sent. A failing test or a small program is best.
+      render: go
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the response status, headers and body if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or admin API output
+      description: For example the output of `GET /rules`.
+      render: text

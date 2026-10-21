@@ -5,9 +5,17 @@ on:
     branches: [master, main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       # Keep going when one version fails, so the others still report.
       fail-fast: false
@@ -15,28 +23,84 @@ jobs:
         # From the minimum in go.mod through the latest release.
         go: ["1.24", "1.25", "1.26", "1.27"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go }}
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       - run: go vet ./...
-      - run: go test -race -shuffle=on ./...
+      - run: make test
+      # Measured on hand-written code: the examples/ programs are excluded.
       - name: coverage (must stay at or above 90%)
-        run: |
-          go test -coverpkg=./... -coverprofile=cover.out ./... > /dev/null
-          total=$(go tool cover -func=cover.out | awk '/^total:/ {sub("%", "", $3); print $3}')
-          echo "total coverage: ${total}%"
-          awk -v t="$total" 'BEGIN { exit !(t >= 90) }' || { echo "::error::coverage ${total}% is below 90%"; exit 1; }
+        run: make cover
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.14.0
+
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - name: doc comments
+        run: make docs
+      - name: govulncheck
+        run: make vuln
+
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [FuzzLoadBytes, FuzzAdminPutRule, FuzzRuleMatches]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - name: fuzz ${{ matrix.target }} for 30s
+        env:
+          TARGET: ${{ matrix.target }}
+        run: go test -run '^$' -fuzz "^${TARGET}\$" -fuzztime 30s .
+      # A failing input is written under testdata/fuzz/; keep it so it can be
+      # committed as a regression test.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: fuzz-${{ matrix.target }}
+          path: testdata/fuzz/
 
   bench:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v7
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: stable
 
@@ -50,8 +114,10 @@ jobs:
       # regressions on the request path are gated by TestHotPathAllocations.
       - name: benchmark base branch
         if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          git worktree add ../base "origin/${{ github.base_ref }}"
+          git worktree add ../base "origin/${BASE_REF}"
           cd ../base
           if ls ./*_test.go >/dev/null 2>&1 && grep -lq 'func Benchmark' ./*_test.go; then
             go test -run '^$' -bench . -benchmem -benchtime=200ms -count=6 ./... > "$GITHUB_WORKSPACE/bench-base.txt" || true
@@ -60,22 +126,24 @@ jobs:
       - name: summarize
         if: always()
         continue-on-error: true
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BENCHSTAT: golang.org/x/perf/cmd/benchstat@v0.0.0-20261009192801-be2c69fb417e
         run: |
-          go install golang.org/x/perf/cmd/benchstat@latest
           {
             echo '## Benchmarks'
             echo
             echo '```'
             if [ -s bench-base.txt ]; then
-              echo "base: ${{ github.base_ref }}   new: this PR"
-              "$(go env GOPATH)/bin/benchstat" base=bench-base.txt new=bench-new.txt
+              echo "base: ${BASE_REF}   new: this PR"
+              go run "$BENCHSTAT" base=bench-base.txt new=bench-new.txt
             else
-              "$(go env GOPATH)/bin/benchstat" new=bench-new.txt
+              go run "$BENCHSTAT" new=bench-new.txt
             fi
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: benchmarks

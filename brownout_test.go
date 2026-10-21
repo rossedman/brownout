@@ -243,6 +243,7 @@ func TestValidate(t *testing.T) {
 	bad := []Rule{
 		{Path: "/x"},
 		{ID: "x"},
+		{ID: "\xa4", Path: "/x"},
 		{ID: "x", Path: "x"},
 		{ID: "x", Path: "/a*/b"},
 		{ID: "x", Path: "/x", AllowPercent: -1},

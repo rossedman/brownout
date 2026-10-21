@@ -27,6 +27,7 @@ import (
 // personalizeDelay simulates an expensive call; tests shorten it.
 var personalizeDelay = 200 * time.Millisecond
 
+// personalize returns personalized content for a product, slowly.
 func personalize(productID string) string {
 	time.Sleep(personalizeDelay)
 	return fmt.Sprintf("Product %s — picked for you: [3 related items]", productID)
@@ -62,6 +63,7 @@ func newServer() (app, admin http.Handler) {
 	return shedding.Middleware(mux), adminMux
 }
 
+// main serves the app on :8080 and both admin APIs on 127.0.0.1:9090.
 func main() {
 	app, admin := newServer()
 
