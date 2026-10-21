@@ -1,0 +1,4 @@
+* text=auto eol=lf
+
+# Go fuzz corpus files are data; keep them out of language stats and diffs.
+testdata/fuzz/** linguist-generated=true

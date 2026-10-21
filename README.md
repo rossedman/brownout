@@ -166,6 +166,10 @@ CI runs every benchmark on each push and pull request. Pull requests get a `benc
 
 Rules live in memory for each process. When you run several replicas, either use `WatchFile` with a shared file such as a ConfigMap, or call the admin API on each instance.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md): `make check` runs every check CI runs. Report security issues privately as described in [SECURITY.md](SECURITY.md).
+
 ## License
 
 [MIT](LICENSE)
