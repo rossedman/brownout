@@ -19,6 +19,8 @@ type ruleRequest struct {
 	TTL string `json:"ttl,omitempty"`
 }
 
+// toRule converts rr to a Rule, turning a TTL into an ExpiresAt relative to
+// now. It rejects a request that sets both, or a TTL that isn't positive.
 func (rr ruleRequest) toRule(now time.Time) (Rule, error) {
 	r := rr.Rule
 	if rr.TTL != "" {
@@ -136,6 +138,8 @@ func (c *Controller) AdminHandler() http.Handler {
 	return mux
 }
 
+// readJSON decodes the request body into v, rejecting unknown fields and
+// bodies over maxBodyBytes. On failure it writes a 400 and returns false.
 func readJSON(w http.ResponseWriter, req *http.Request, v any) bool {
 	dec := json.NewDecoder(io.LimitReader(req.Body, maxBodyBytes))
 	dec.DisallowUnknownFields()
@@ -146,12 +150,15 @@ func readJSON(w http.ResponseWriter, req *http.Request, v any) bool {
 	return true
 }
 
+// writeJSON writes v as a JSON response with the given status.
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// writeError writes err as a JSON {"error": ...} response with the given
+// status.
 func writeError(w http.ResponseWriter, status int, err error) {
 	writeJSON(w, status, map[string]string{"error": err.Error()})
 }

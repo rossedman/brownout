@@ -27,6 +27,8 @@ import (
 	"github.com/rossedman/brownout"
 )
 
+// requireToken wraps next so that only requests carrying
+// "Authorization: Bearer <token>" reach it; others get 401.
 func requireToken(token string, next http.Handler) http.Handler {
 	want := []byte("Bearer " + token)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -55,6 +57,7 @@ func newHandler(token string) http.Handler {
 	return root
 }
 
+// main serves the app and the token-protected admin API on :8080.
 func main() {
 	token := os.Getenv("BROWNOUT_TOKEN")
 	if token == "" {

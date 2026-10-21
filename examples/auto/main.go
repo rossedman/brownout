@@ -39,6 +39,7 @@ const (
 // dependency stands in for a real downstream service.
 type dependency struct{ down atomic.Bool }
 
+// Ping reports an error while the dependency is marked down or ctx is done.
 func (d *dependency) Ping(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -124,6 +125,7 @@ func newApp(c *brownout.Controller, dep *dependency) http.Handler {
 	return c.Middleware(mux)
 }
 
+// main serves the app on :8080 and watches the dependency in the background.
 func main() {
 	c := brownout.New()
 	dep := &dependency{}

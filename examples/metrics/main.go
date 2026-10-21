@@ -28,6 +28,7 @@ import (
 
 var shedByRule = expvar.NewMap("brownout_shed")
 
+// jsonResponder writes shed responses as a JSON error naming the rule.
 func jsonResponder(w http.ResponseWriter, r *http.Request, rule brownout.Rule) {
 	w.Header().Set("Content-Type", "application/json")
 	if rule.RetryAfterSeconds > 0 {
@@ -69,6 +70,8 @@ func newServer() (app, admin http.Handler) {
 	return c.Middleware(mux), adminMux
 }
 
+// main serves the app on :8080 and the admin API and /debug/vars on
+// 127.0.0.1:9090.
 func main() {
 	app, admin := newServer()
 

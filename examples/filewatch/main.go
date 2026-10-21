@@ -104,6 +104,7 @@ func cli(ctx context.Context, args []string) error {
 	return run(ctx, ln, *rulesPath, *interval)
 }
 
+// main runs the CLI until SIGINT or SIGTERM.
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	err := cli(ctx, os.Args[1:])

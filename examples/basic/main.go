@@ -36,6 +36,7 @@ func newServer() (app, admin http.Handler) {
 	return c.Middleware(mux), c.AdminHandler()
 }
 
+// main serves the app on :8080 and the admin API on :9090.
 func main() {
 	app, admin := newServer()
 

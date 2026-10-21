@@ -102,10 +102,13 @@ func (r *Rule) matchesRequest(req *http.Request) bool {
 	return matchPath(r.Path, req.URL.Path)
 }
 
+// expired reports whether the rule has an expiry at or before now.
 func (r *Rule) expired(now time.Time) bool {
 	return !r.ExpiresAt.IsZero() && !now.Before(r.ExpiresAt)
 }
 
+// matchPath reports whether path matches pattern: a prefix match when
+// pattern ends in "*", an exact match otherwise.
 func matchPath(pattern, path string) bool {
 	if prefix, ok := strings.CutSuffix(pattern, "*"); ok {
 		return strings.HasPrefix(path, prefix)
@@ -126,6 +129,7 @@ func (r Rule) normalize() Rule {
 	return r
 }
 
+// clone returns a copy of r whose Methods slice is not shared with r.
 func (r Rule) clone() Rule {
 	r.Methods = slices.Clone(r.Methods)
 	return r
@@ -339,6 +343,8 @@ func (c *Controller) liveRules() []Rule {
 	return out
 }
 
+// defaultResponder writes a plain-text response with the rule's status,
+// message (or the status text) and Retry-After header.
 func defaultResponder(w http.ResponseWriter, _ *http.Request, rule Rule) {
 	if rule.RetryAfterSeconds > 0 {
 		w.Header().Set("Retry-After", strconv.Itoa(rule.RetryAfterSeconds))
