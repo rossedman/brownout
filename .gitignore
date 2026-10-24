@@ -33,3 +33,7 @@ bench.old.txt
 !/.vscode/
 /.vscode/*
 !/.vscode/settings.json
+
+# MkDocs build output (anchored: docs/assets/site/ is source).
+/site/
+/dist/

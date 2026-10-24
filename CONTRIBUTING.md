@@ -33,10 +33,22 @@ make check
 
 It builds, lints (gofmt, go vet, golangci-lint), runs the tests with the race
 detector, enforces the coverage gate, checks doc comments, runs govulncheck,
-smoke-runs the benchmarks and fuzzes each fuzz target for 30s. Use
+smoke-runs the benchmarks, fuzzes each fuzz target for 30s and builds the docs
+site in strict mode. Use
 `make check FUZZTIME=5s` for a quicker local run. Individual targets:
 `make test`, `make cover`, `make lint`, `make docs`, `make vuln`, `make bench`
 and `make fuzz`.
+
+## Docs site
+
+The site at <https://rossedman.io/brownout/> is built with MkDocs Material
+from `docs/`, with the landing page in `overrides/home.html`. You need
+[uv](https://docs.astral.sh/uv/); `make docs-serve` previews it and
+`make docs-build` runs the strict build CI runs, which fails on broken links.
+The playground (`docs/assets/site/playground.js`) mirrors `Rule.Validate` and
+the matching in `Controller.Check`; update it when those change. The banner
+and social card are HTML in `docs/assets/src/`, rendered to PNG by
+`docs/assets/render.sh`.
 
 ## Quality bars
 
@@ -87,5 +99,5 @@ becomes the commit message.
 
 Open an issue with your question, or start from the
 [package documentation](https://pkg.go.dev/github.com/rossedman/brownout).
-Report security problems privately as described in [SECURITY.md](SECURITY.md).
-By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+Report security problems privately as described in [SECURITY.md](https://github.com/rossedman/brownout/blob/master/SECURITY.md).
+By taking part you agree to the [Code of Conduct](https://github.com/rossedman/brownout/blob/master/CODE_OF_CONDUCT.md).

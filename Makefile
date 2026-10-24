@@ -5,9 +5,10 @@ GOVULNCHECK := golang.org/x/vuln/cmd/govulncheck@v1.9.0
 BENCHSTAT   := golang.org/x/perf/cmd/benchstat@v0.0.0-20261009192801-be2c69fb417e
 FUZZTIME    ?= 30s
 COVERAGE    ?= 90
+MKDOCS      := uv run --no-project --with-requirements requirements-docs.txt mkdocs
 FUZZ_TARGETS = $(shell grep -ho '^func Fuzz[A-Za-z0-9_]*' *_test.go | cut -d' ' -f2)
 
-.PHONY: build test cover bench bench-smoke benchstat fuzz lint vuln docs check
+.PHONY: build test cover bench bench-smoke benchstat fuzz lint vuln docs docs-serve docs-build check
 
 build:
 	go build ./...
@@ -49,4 +50,12 @@ vuln:
 docs:
 	go run ./tools/doccheck ./...
 
-check: build lint test cover docs vuln bench-smoke fuzz
+# Docs site (MkDocs Material); docs-build is strict, so broken links and
+# anchors fail it. Needs uv.
+docs-serve:
+	$(MKDOCS) serve
+
+docs-build:
+	$(MKDOCS) build --strict
+
+check: build lint test cover docs vuln bench-smoke fuzz docs-build

@@ -1,0 +1,215 @@
+{#- The landing page. Everything renders in the tabs block, outside Material's
+    content grid, so sections can run edge to edge. Styles live in
+    docs/assets/site/landing.css. Terminal lines are copied from a real run of
+    examples/basic; the numbers come from `make bench` on a 4-vCPU Xeon VM. -#}
+{% extends "main.html" %}
+
+{% set gh = "https://github.com/rossedman/brownout" %}
+{% set install = "go get github.com/rossedman/brownout" %}
+
+{% block tabs %}
+{{ super() }}
+<div class="lp">
+
+  <section class="lp-hero">
+    <div class="lp-grid" aria-hidden="true"></div>
+    <div class="lp-wrap lp-hero__inner">
+      <div>
+        <img class="lp-hero__logo" src="{{ 'assets/site/logo.svg' | url }}" alt="">
+        <p class="lp-kicker">rossedman/brownout</p>
+        <h1 class="lp-title">Dim an endpoint,<br><span>keep serving.</span></h1>
+        <p class="lp-tagline">Go HTTP middleware that sheds some or all traffic to the routes you choose, while the server keeps running. <b>No restart, no deploy, no dependencies.</b></p>
+        <div class="lp-install">
+          <span class="lp-install__prompt">$</span>
+          <code>{{ install }}</code>
+          <button class="lp-copy" data-copy="{{ install }}" aria-label="Copy install command">
+            {% include ".icons/material/content-copy.svg" %}
+          </button>
+        </div>
+        <div class="lp-cta">
+          <a class="lp-btn lp-btn--primary" href="{{ 'getting-started/' | url }}">Get started {% include ".icons/material/arrow-right.svg" %}</a>
+          <a class="lp-btn" href="{{ 'playground/' | url }}">{% include ".icons/material/play-circle-outline.svg" %} Try the playground</a>
+        </div>
+      </div>
+
+      <div class="lp-term" aria-label="A terminal browning out a route on the basic example">
+        <div class="lp-term__bar"><i></i><i></i><i></i><span>~ go run ./examples/basic</span></div>
+        <div class="lp-term__body" data-typing>
+          <div><span class="p">$</span> <span class="c" data-type>curl localhost:8080/reports/q3</span></div>
+          <div><span class="ok">hello from /reports/q3</span></div>
+          <div><span class="p">$</span> <span class="c" data-type>curl -X PUT localhost:9090/rules/reports \</span></div>
+          <div><span class="c" data-type>    -d '{"path":"/reports/*","ttl":"10m"}'</span></div>
+          <div><span class="d">{"id":"reports","path":"/reports/*",…}</span></div>
+          <div><span class="p">$</span> <span class="c" data-type>curl -i localhost:8080/reports/q3</span></div>
+          <div><span class="e">HTTP/1.1 503 Service Unavailable</span></div>
+          <div><span class="p">$</span> <span class="c" data-type>curl -X DELETE localhost:9090/rules/reports</span><span class="lp-caret"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <ul class="lp-wrap lp-stats">
+      <li><b>21 ns</b><span>per request with no rules installed</span></li>
+      <li><b>0</b><span>allocations on requests no rule matches</span></li>
+      <li><b>0</b><span>dependencies outside the standard library</span></li>
+      <li><b>3</b><span>ways to change rules: Go, HTTP or a watched file</span></li>
+    </ul>
+  </section>
+
+  <section class="lp-section" id="problem">
+    <div class="lp-wrap lp-split">
+      <div>
+        <p class="lp-eyebrow">The problem</p>
+        <h2>A dependency is drowning.<br><span>Turn the load down.</span></h2>
+        <p class="lp-lede">When the database behind your reports page starts to fall over, the fix in the moment is to stop sending it traffic. Usually that means a config change and a redeploy, in the middle of an incident. brownout lets you shed that one route right now, then lift the rule when the incident is over.</p>
+        <ul class="lp-points">
+          <li>{% include ".icons/material/check-decagram-outline.svg" %} Takes effect on the next request: rules are swapped atomically</li>
+          <li>{% include ".icons/material/check-decagram-outline.svg" %} Shed all of a route, or let a set percentage of it through</li>
+          <li>{% include ".icons/material/check-decagram-outline.svg" %} Rules with a TTL lift by themselves, so a forgotten brownout can't outlast the incident</li>
+        </ul>
+      </div>
+      <div class="lp-stack">
+        <article class="lp-panel" aria-label="The response a shed request gets">
+          <div class="lp-panel__head">
+            <span class="lp-panel__id">reports</span><span class="lp-pill lp-pill--bad">shed</span>
+            <span class="lp-panel__meta">expires in 10m</span>
+          </div>
+          <h3>GET /reports/q3</h3>
+          <div class="lp-panel__sub">Matched <code>/reports/*</code>, the first rule that applies</div>
+          <div class="lp-well">HTTP/1.1 503 Service Unavailable
+Content-Type: text/plain; charset=utf-8
+Retry-After: 60
+
+Service Unavailable</div>
+        </article>
+        <article class="lp-panel" aria-label="A request no rule matches">
+          <div class="lp-panel__head">
+            <span class="lp-panel__id">no rule</span><span class="lp-pill lp-pill--ok">passed</span>
+            <span class="lp-panel__meta">0 allocs</span>
+          </div>
+          <h3>GET /orders</h3>
+          <div class="lp-panel__sub">No rule matches, so your handler serves it untouched</div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-section lp-section--alt">
+    <div class="lp-wrap">
+      <p class="lp-eyebrow">Core ideas</p>
+      <h2>One small rule.<br><span>Three decisions.</span></h2>
+      <p class="lp-lede lp-lede--center">A rule says which requests it matches, how many of them to let through, and when to stop applying. Rules are checked in order, and the first match decides.</p>
+      <div class="lp-pillars">
+        <article class="lp-pillar" style="--accent: var(--brand)">
+          <h3>Match</h3><div class="when">path and method</div>
+          <p>An exact path, a prefix ending in <code>*</code>, or <code>*</code> for everything, optionally limited to some methods.</p>
+          <pre><code>{"path": "/api/*",
+ "methods": ["POST", "DELETE"]}</code></pre>
+        </article>
+        <article class="lp-pillar" style="--accent: var(--warn)">
+          <h3>Let some through</h3><div class="when">partial brownouts</div>
+          <p>The default sheds everything. Set a percentage to cut load without switching the feature off.</p>
+          <pre><code>{"path": "/search",
+ "allow_percent": 20}</code></pre>
+        </article>
+        <article class="lp-pillar" style="--accent: var(--info)">
+          <h3>Expire</h3><div class="when">self-healing</div>
+          <p>Give a rule a TTL through the admin API, or an <code>ExpiresAt</code> in Go, and it lifts by itself.</p>
+          <pre><code>{"path": "/reports/*",
+ "ttl": "10m"}</code></pre>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-section">
+    <div class="lp-wrap">
+      <p class="lp-eyebrow">Why brownout</p>
+      <h2>Built for the request path.<br><span>Controlled from anywhere.</span></h2>
+      <div class="lp-features">
+        {% for icon, title, body in [
+          ("lightning-bolt", "Lock-free hot path", "Rules are read through an atomic pointer. Unmatched requests take no locks and make no allocations, and TestHotPathAllocations keeps it that way."),
+          ("api", "JSON admin API", "Six endpoints to list, set, replace and remove rules. Mount it on an internal port, or behind your own auth."),
+          ("file-sync-outline", "Watched rules file", "WatchFile reloads a JSON file when it changes, which fits a Kubernetes ConfigMap. An invalid file keeps the current rules."),
+          ("source-branch", "Exceptions by order", "The first matching rule decides, so an allow_percent 100 rule before a broad one exempts a path."),
+          ("tune-variant", "Your response, your metrics", "WithResponder writes the shed response, WithOnShed counts it, and Check lets you degrade instead of reject."),
+          ("package-variant-closed", "Plain net/http", "Standard http.Handler middleware with no dependencies. It works with any router built on net/http, on Go 1.24 and newer."),
+        ] %}
+        <article class="lp-card">
+          <div class="lp-icon">{% include ".icons/material/" ~ icon ~ ".svg" %}</div>
+          <h3>{{ title }}</h3>
+          <p>{{ body }}</p>
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-section lp-section--alt" id="quick-start">
+    <div class="lp-wrap lp-split">
+      <div>
+        <p class="lp-eyebrow">Quick start</p>
+        <h2>Wire it in<br><span>in three steps.</span></h2>
+        <p class="lp-lede">You need Go 1.24 or newer and an existing <code>http.Handler</code>.</p>
+        <a class="lp-btn" href="{{ 'getting-started/' | url }}">{% include ".icons/material/book-open-page-variant-outline.svg" %} Full getting-started guide</a>
+      </div>
+      <ol class="lp-steps">
+        <li>
+          <h4>Install</h4>
+          <pre class="lp-code"><button class="lp-copy" aria-label="Copy">{% include ".icons/material/content-copy.svg" %}</button><code><span class="p">$</span> {{ install }}</code></pre>
+        </li>
+        <li>
+          <h4>Wrap your app</h4>
+          <p>Serve the admin API on an internal-only listener.</p>
+          <pre class="lp-code"><button class="lp-copy" aria-label="Copy">{% include ".icons/material/content-copy.svg" %}</button><code>c := brownout.New()
+go http.ListenAndServe(":8080", c.Middleware(app))
+http.ListenAndServe("127.0.0.1:9090", c.AdminHandler())</code></pre>
+        </li>
+        <li>
+          <h4>Brown out a route</h4>
+          <p>Shed <code>/reports/*</code> for ten minutes.</p>
+          <pre class="lp-code"><button class="lp-copy" aria-label="Copy">{% include ".icons/material/content-copy.svg" %}</button><code><span class="p">$</span> curl -X PUT localhost:9090/rules/reports -d '{"path":"/reports/*","ttl":"10m"}'</code></pre>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="lp-section">
+    <div class="lp-wrap">
+      <p class="lp-eyebrow">Documentation</p>
+      <h2>Go deeper.</h2>
+      <div class="lp-docs">
+        {% for path, name, blurb in [
+          ("getting-started/", "Getting started", "Install it and shed your first route"),
+          ("rules/", "Rules", "Every field, matching and ordering"),
+          ("changing-rules/", "Changing rules", "Go API, admin API and watched files"),
+          ("customizing/", "Customizing", "Responses, metrics and degrading"),
+          ("production/", "Production", "Replicas, admin safety, exceptions"),
+          ("examples/", "Examples", "Six runnable servers"),
+          ("playground/", "Playground", "Test rules against requests in your browser"),
+          ("performance/", "Performance", "Benchmarks and what they cost"),
+        ] %}
+        <a class="lp-doc" href="{{ path | url }}">
+          <b>{{ name }}</b><span>{{ blurb }}</span>
+          {% include ".icons/material/arrow-right.svg" %}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-final">
+    <div class="lp-grid" aria-hidden="true"></div>
+    <div class="lp-wrap">
+      <img class="lp-final__logo" src="{{ 'assets/site/logo.svg' | url }}" alt="">
+      <h2>Have the switch ready before you need it.</h2>
+      <p class="lp-lede lp-lede--center">Free and open source under the MIT license.</p>
+      <div class="lp-cta lp-cta--center">
+        <a class="lp-btn lp-btn--primary" href="{{ 'getting-started/' | url }}">Get started {% include ".icons/material/arrow-right.svg" %}</a>
+        <a class="lp-btn" href="{{ gh }}">{% include ".icons/material/source-repository.svg" %} View on GitHub</a>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block content %}{% endblock %}
