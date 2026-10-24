@@ -6,6 +6,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait a week before proposing a newly published version, so a
+    # compromised or broken release is likely caught before it lands here.
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: deps
     groups:
@@ -18,6 +22,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait a week before proposing a newly published version, so a
+    # compromised or broken release is likely caught before it lands here.
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: ci
     groups:
