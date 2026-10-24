@@ -1,9 +1,19 @@
-# brownout
+<p align="center">
+  <a href="https://rossedman.io/brownout/">
+    <img src="docs/assets/banner.png" alt="brownout: dim an endpoint, keep serving" width="100%">
+  </a>
+</p>
 
-[![CI](https://github.com/rossedman/brownout/actions/workflows/ci.yml/badge.svg)](https://github.com/rossedman/brownout/actions/workflows/ci.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/rossedman/brownout.svg)](https://pkg.go.dev/github.com/rossedman/brownout)
+<p align="center">
+  <a href="https://github.com/rossedman/brownout/actions/workflows/ci.yml"><img src="https://github.com/rossedman/brownout/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://pkg.go.dev/github.com/rossedman/brownout"><img src="https://pkg.go.dev/badge/github.com/rossedman/brownout.svg" alt="Go Reference"></a>
+  <a href="https://goreportcard.com/report/github.com/rossedman/brownout"><img src="https://goreportcard.com/badge/github.com/rossedman/brownout" alt="Go Report Card"></a>
+  <a href="https://github.com/rossedman/brownout/releases"><img src="https://img.shields.io/github/v/release/rossedman/brownout?color=f5a142" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-8fd1a8" alt="MIT License"></a>
+  <a href="https://rossedman.io/brownout/"><img src="https://img.shields.io/badge/docs-rossedman.io%2Fbrownout-f5a142" alt="Documentation"></a>
+</p>
 
-Go HTTP middleware for **browning out endpoints at runtime**. You can shed some or all traffic to selected routes without restarting or redeploying the server.
+**brownout** is Go HTTP middleware for **browning out endpoints at runtime**. You can shed some or all traffic to selected routes without restarting or redeploying the server.
 
 Use it when a downstream dependency is struggling and you want to turn off an expensive endpoint, cut a noisy route to 10% of its traffic, or make writes read-only for a while. When the incident is over, you remove the rule.
 
@@ -49,7 +59,7 @@ curl localhost:9090/rules
 curl -X DELETE localhost:9090/rules/reports
 ```
 
-📖 **Docs and an interactive rule playground: https://rossedman.github.io/brownout/**
+📖 **Docs and an interactive rule playground: https://rossedman.io/brownout/**
 
 ## Examples
 
@@ -143,16 +153,16 @@ To make the decision yourself (for example, to degrade a response instead of rej
 
 ## Performance
 
-The request path takes no locks and makes no allocations unless a request is shed. It reads the clock only when a request matches a rule that has an expiry. Rule evaluation is linear in the number of rules, about 12ns per rule that is checked. Representative numbers from `go test -bench . -benchmem` on a 4-vCPU Xeon VM:
+The request path takes no locks and makes no allocations unless a request is shed. It reads the clock only when a request matches a rule that has an expiry. Rule evaluation is linear in the number of rules, about 10 ns per rule that is checked. Representative numbers from `go test -bench . -benchmem` on a 4-vCPU Xeon VM:
 
 | Scenario | Time/request | Allocs |
 |---|---|---|
-| No rules installed | ~24 ns | 0 |
-| 1 rule, no match | ~37 ns | 0 |
-| 10 rules, none match | ~160 ns | 0 |
-| 100 rules, none match | ~1.2 µs | 0 |
-| Matched, shed with the default 503 response | ~370 ns | 3 |
-| 10 rules, 4 goroutines in parallel, rules changing concurrently | ~85 ns | 0 |
+| No rules installed | ~21 ns | 0 |
+| 1 rule, no match | ~30 ns | 0 |
+| 10 rules, none match | ~130 ns | 0 |
+| 100 rules, none match | ~960 ns | 0 |
+| Matched, shed with the default 503 response | ~320 ns | 3 |
+| 10 rules, 4 goroutines in parallel, rules changing concurrently | ~56 ns | 0 |
 
 Run them yourself with:
 
@@ -165,6 +175,10 @@ CI runs every benchmark on each push and pull request. Pull requests get a `benc
 ## Multiple instances
 
 Rules live in memory for each process. When you run several replicas, either use `WatchFile` with a shared file such as a ConfigMap, or call the admin API on each instance.
+
+## Documentation
+
+The [docs site](https://rossedman.io/brownout/) has a getting-started guide, every rule field, production advice and the [rule playground](https://rossedman.io/brownout/playground/). Preview it locally with `make docs-serve` (needs [uv](https://docs.astral.sh/uv/)).
 
 ## Contributing
 
