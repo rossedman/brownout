@@ -10,5 +10,16 @@
       "Edit(.golangci.yml)",
       "Write(.golangci.yml)"
     ]
+  },
+  "extraKnownMarketplaces": {
+    "rossedman": {
+      "source": {
+        "source": "github",
+        "repo": "rossedman/claude"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "sarifix@rossedman": true
   }
 }
