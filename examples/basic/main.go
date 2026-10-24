@@ -11,14 +11,17 @@
 package main
 
 import (
-	"fmt"
-	"html"
+	"html/template"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/rossedman/brownout"
 )
+
+// helloPage is the app's response. html/template escapes the path, so a
+// crafted URL can't inject markup.
+var helloPage = template.Must(template.New("hello").Parse("hello from {{.}}\n"))
 
 // newServer returns the app handler, wrapped in brownout middleware, and the
 // admin API handler that controls it.
@@ -31,7 +34,9 @@ func newServer() (app, admin http.Handler) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "hello from %s\n", html.EscapeString(r.URL.Path))
+		if err := helloPage.Execute(w, r.URL.Path); err != nil {
+			log.Printf("write response: %v", err)
+		}
 	})
 	return c.Middleware(mux), c.AdminHandler()
 }

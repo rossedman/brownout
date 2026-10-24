@@ -48,3 +48,21 @@ func TestSheddingRuleRejects(t *testing.T) {
 		}
 	}
 }
+
+func TestProductPagesEscapeID(t *testing.T) {
+	app, admin := newServer()
+	const hostile = "/products/%3Cb%3E"
+
+	// Full page: the ID reaches the response through personalize.
+	if rec := serve(app, "GET", hostile, ""); rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "<b>") ||
+		!strings.HasPrefix(rec.Body.String(), "Product &lt;b&gt; ") {
+		t.Fatalf("personalized: %d %q", rec.Code, rec.Body)
+	}
+
+	if rec := serve(admin, "PUT", "/rules/product-personalization", `{"path":"/products/*"}`); rec.Code != http.StatusOK {
+		t.Fatalf("PUT feature rule: %d %s", rec.Code, rec.Body)
+	}
+	if rec := serve(app, "GET", hostile, ""); rec.Code != http.StatusOK || rec.Body.String() != "Product &lt;b&gt;\n" {
+		t.Fatalf("degraded: %d %q", rec.Code, rec.Body)
+	}
+}

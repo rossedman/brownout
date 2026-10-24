@@ -21,7 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html"
+	"html/template"
 	"log"
 	"net/http"
 	"sync/atomic"
@@ -29,6 +29,10 @@ import (
 
 	"github.com/rossedman/brownout"
 )
+
+// recommendationsPage is the endpoint's response. html/template escapes the
+// user name, so a crafted URL can't inject markup.
+var recommendationsPage = template.Must(template.New("recommendations").Parse("recommendations for user {{.}}: [...]\n"))
 
 const (
 	ruleID    = "auto-recommendations"
@@ -112,7 +116,9 @@ func watchDependency(ctx context.Context, c *brownout.Controller, dep *dependenc
 func newApp(c *brownout.Controller, dep *dependency) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/recommendations/{user}", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "recommendations for user %s: [...]\n", html.EscapeString(r.PathValue("user")))
+		if err := recommendationsPage.Execute(w, r.PathValue("user")); err != nil {
+			log.Printf("write response: %v", err)
+		}
 	})
 	mux.HandleFunc("POST /debug/dep/fail", func(w http.ResponseWriter, r *http.Request) {
 		dep.down.Store(true)
