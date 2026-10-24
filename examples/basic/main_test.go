@@ -38,3 +38,23 @@ func TestBrownoutViaAdminAPI(t *testing.T) {
 		t.Fatalf("after restore: %d", rec.Code)
 	}
 }
+
+func TestAppEscapesPath(t *testing.T) {
+	t.Parallel()
+	app, _ := newServer()
+
+	tests := []struct {
+		name, path, want string
+	}{
+		{"plain path", "/reports/q3", "hello from /reports/q3\n"},
+		{"markup in path", "/%3Cscript%3Ealert(1)%3C/script%3E", "hello from /&lt;script&gt;alert(1)&lt;/script&gt;\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if rec := serve(app, "GET", tc.path, ""); rec.Code != http.StatusOK || rec.Body.String() != tc.want {
+				t.Errorf("GET %s: %d %q, want 200 %q", tc.path, rec.Code, rec.Body, tc.want)
+			}
+		})
+	}
+}

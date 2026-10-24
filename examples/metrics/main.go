@@ -16,8 +16,7 @@ package main
 import (
 	"encoding/json"
 	"expvar"
-	"fmt"
-	"html"
+	"html/template"
 	"log"
 	"net/http"
 	"strconv"
@@ -25,6 +24,10 @@ import (
 
 	"github.com/rossedman/brownout"
 )
+
+// helloPage is the app's response. html/template escapes the path, so a
+// crafted URL can't inject markup.
+var helloPage = template.Must(template.New("hello").Parse("hello from {{.}}\n"))
 
 var shedByRule = expvar.NewMap("brownout_shed")
 
@@ -60,7 +63,9 @@ func newServer() (app, admin http.Handler) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "hello from %s\n", html.EscapeString(r.URL.Path))
+		if err := helloPage.Execute(w, r.URL.Path); err != nil {
+			log.Printf("write response: %v", err)
+		}
 	})
 
 	adminMux := http.NewServeMux()

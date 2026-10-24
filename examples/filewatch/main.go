@@ -14,8 +14,7 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
-	"html"
+	"html/template"
 	"log"
 	"net"
 	"net/http"
@@ -26,6 +25,10 @@ import (
 
 	"github.com/rossedman/brownout"
 )
+
+// helloPage is the app's response. html/template escapes the path, so a
+// crafted URL can't inject markup.
+var helloPage = template.Must(template.New("hello").Parse("hello from {{.}}\n"))
 
 // shutdownGrace is how long in-flight requests get to finish on shutdown.
 var shutdownGrace = 5 * time.Second
@@ -56,7 +59,9 @@ func run(ctx context.Context, ln net.Listener, rulesPath string, interval time.D
 
 	app := http.NewServeMux()
 	app.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "hello from %s\n", html.EscapeString(r.URL.Path))
+		if err := helloPage.Execute(w, r.URL.Path); err != nil {
+			log.Printf("write response: %v", err)
+		}
 	})
 	srv := &http.Server{Handler: c.Middleware(app), ReadHeaderTimeout: 10 * time.Second}
 

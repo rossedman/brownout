@@ -17,8 +17,7 @@ package main
 
 import (
 	"crypto/subtle"
-	"fmt"
-	"html"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -26,6 +25,10 @@ import (
 
 	"github.com/rossedman/brownout"
 )
+
+// helloPage is the app's response. html/template escapes the path, so a
+// crafted URL can't inject markup.
+var helloPage = template.Must(template.New("hello").Parse("hello from {{.}}\n"))
 
 // requireToken wraps next so that only requests carrying
 // "Authorization: Bearer <token>" reach it; others get 401.
@@ -48,7 +51,9 @@ func newHandler(token string) http.Handler {
 
 	app := http.NewServeMux()
 	app.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "hello from %s\n", html.EscapeString(r.URL.Path))
+		if err := helloPage.Execute(w, r.URL.Path); err != nil {
+			log.Printf("write response: %v", err)
+		}
 	})
 
 	root := http.NewServeMux()

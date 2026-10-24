@@ -16,12 +16,20 @@ package main
 
 import (
 	"fmt"
-	"html"
+	"html/template"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/rossedman/brownout"
+)
+
+// The responses. html/template escapes the values, so a crafted URL can't
+// inject markup.
+var (
+	productPage      = template.Must(template.New("product").Parse("Product {{.}}\n"))
+	personalizedPage = template.Must(template.New("personalized").Parse("{{.}}\n"))
+	helloPage        = template.Must(template.New("hello").Parse("hello from {{.}}\n"))
 )
 
 // personalizeDelay simulates an expensive call; tests shorten it.
@@ -47,13 +55,19 @@ func newServer() (app, admin http.Handler) {
 
 		if rule, degraded := features.Check(r); degraded {
 			w.Header().Set("X-Degraded", rule.ID)
-			fmt.Fprintf(w, "Product %s\n", html.EscapeString(id))
+			if err := productPage.Execute(w, id); err != nil {
+				log.Printf("write response: %v", err)
+			}
 			return
 		}
-		fmt.Fprintln(w, personalize(id))
+		if err := personalizedPage.Execute(w, personalize(id)); err != nil {
+			log.Printf("write response: %v", err)
+		}
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "hello from %s\n", html.EscapeString(r.URL.Path))
+		if err := helloPage.Execute(w, r.URL.Path); err != nil {
+			log.Printf("write response: %v", err)
+		}
 	})
 
 	adminMux := http.NewServeMux()
