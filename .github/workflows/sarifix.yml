@@ -44,4 +44,4 @@ jobs:
           GOLANGCI_LINT_VERSION: "2.14.0" # match ci.yml
         with:
           queue: ${{ vars.SARIFIX_QUEUE }}
-          dry-run: "true" # first run only: lists the issues it would open
+          dry-run: "false" # "true" lists the issues it would open without writing
