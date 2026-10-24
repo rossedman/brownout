@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -56,5 +59,31 @@ func TestAppEscapesPath(t *testing.T) {
 				t.Errorf("GET %s: %d %q, want 200 %q", tc.path, rec.Code, rec.Body, tc.want)
 			}
 		})
+	}
+}
+
+// TestShedLogEscapesPath checks that a shed request logs one line, even when
+// its path decodes to a newline. Not parallel: it redirects the standard logger.
+func TestShedLogEscapesPath(t *testing.T) {
+	var buf bytes.Buffer
+	flags := log.Flags()
+	log.SetOutput(&buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(flags)
+	})
+
+	app, admin := newServer()
+	if rec := serve(admin, "PUT", "/rules/reports", `{"path":"/reports/*"}`); rec.Code != http.StatusOK {
+		t.Fatalf("PUT rule: %d %s", rec.Code, rec.Body)
+	}
+	if rec := serve(app, "GET", "/reports/a%0Abrownout:%20shed%20GET%20%22/fake%22", ""); rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("GET: %d, want 503", rec.Code)
+	}
+
+	want := `brownout: shed "GET" "/reports/a\nbrownout: shed GET \"/fake\"" (rule "reports")` + "\n"
+	if got := buf.String(); got != want {
+		t.Errorf("log = %q, want %q", got, want)
 	}
 }

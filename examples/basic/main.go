@@ -28,7 +28,9 @@ var helloPage = template.Must(template.New("hello").Parse("hello from {{.}}\n"))
 func newServer() (app, admin http.Handler) {
 	c := brownout.New(
 		brownout.WithOnShed(func(r *http.Request, rule brownout.Rule) {
-			log.Printf("brownout: shed %s %s (rule %q)", r.Method, r.URL.Path, rule.ID)
+			// %q escapes control characters, so a path such as "/a%0Afake" can't
+			// forge a second log line.
+			log.Printf("brownout: shed %q %q (rule %q)", r.Method, r.URL.Path, rule.ID)
 		}),
 	)
 
