@@ -1,0 +1,41 @@
+# sarifix: scanner feedback before Claude finishes, and in CI.
+# The sarifix plugin's Stop hook runs `sarifix check --hook`, which scans the
+# working tree and HEAD with these scanners and reports only the findings the
+# uncommitted changes introduced. .github/workflows/sarifix.yml runs the same
+# scanners on pull requests and the default branch.
+# Docs: https://rossedman.io/sarifix/configuration/
+version: 1
+
+scanners:
+  # The same linters and .golangci.yml that CI and `make lint` use.
+  - name: golangci-lint
+    command: ["golangci-lint", "run", "--output.sarif.path={out}", "./..."]
+    workdir: "{dir}"
+  # brownout has no IaC, so scan the filesystem: Go module vulnerabilities and
+  # committed secrets, plus misconfigurations if a Dockerfile or manifest is
+  # ever added.
+  - name: trivy
+    match: ["Trivy"]
+    command: ["trivy", "fs", "--quiet", "--scanners", "vuln,secret,misconfig", "--format", "sarif", "-o", "{out}", "{dir}"]
+  - name: semgrep
+    match: ["Semgrep OSS", "Semgrep"]
+    command: ["semgrep", "scan", "--quiet", "--metrics=off", "--config", "p/default", "--sarif-output={out}", "{dir}"]
+    timeout: 10m
+
+rules:
+  min_level: warning
+  # Which rules become GitHub issues in the action's issues mode. The Stop
+  # hook ignores this list and reports every new finding not denied below.
+  allow:
+    - "golangci-lint/*"
+    - "trivy/*"
+    - "semgrep/package_managers.dependabot.dependabot-missing-cooldown.*"
+    - "semgrep/go.lang.security.audit.xss.no-fprintf-to-responsewriter.*"
+  deny:
+    # Partial brownouts need a fast PRNG on the request path, not a
+    # cryptographic one; .golangci.yml excludes gosec G404 for the same reason.
+    - "semgrep/go.lang.security.audit.crypto.math_random.math-random-used"
+
+paths:
+  # Fuzz corpora and site build output aren't code anyone maintains.
+  deny: ["**/testdata/**", "site/**", "dist/**"]

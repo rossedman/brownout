@@ -39,6 +39,22 @@ site in strict mode. Use
 `make test`, `make cover`, `make lint`, `make docs`, `make vuln`, `make bench`
 and `make fuzz`.
 
+## Scanners (sarifix)
+
+[sarifix](https://github.com/rossedman/sarifix) runs golangci-lint, Trivy and
+Semgrep, configured in `sarifix.yaml`. On pull requests the `sarifix` workflow
+reports any findings your change introduces. To check locally before you push,
+install sarifix and the three scanners, then run:
+
+```sh
+sarifix check    # findings your uncommitted changes introduce, vs HEAD
+```
+
+With Claude Code, the `sarifix` plugin (enabled in `.claude/settings.json`)
+runs the same check whenever Claude is about to finish, and hands it any new
+findings to fix. On `master`, allowed rules (`rules.allow`) become one GitHub
+issue per batch.
+
 ## Docs site
 
 The site at <https://rossedman.io/brownout/> is built with MkDocs Material
