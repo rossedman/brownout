@@ -41,10 +41,11 @@ and `make fuzz`.
 
 ## Scanners (sarifix)
 
-[sarifix](https://github.com/rossedman/sarifix) runs golangci-lint, Trivy and
-Semgrep, configured in `sarifix.yaml`. On pull requests the `sarifix` workflow
+[sarifix](https://github.com/rossedman/sarifix) runs golangci-lint and
+Semgrep, configured in `sarifix.yaml`. CodeQL runs in its own workflow and
+reports to code scanning; sarifix imports its alerts. On pull requests the `sarifix` workflow
 reports any findings your change introduces. To check locally before you push,
-install sarifix and the three scanners, then run:
+install sarifix, golangci-lint and Semgrep, then run:
 
 ```sh
 sarifix check    # findings your uncommitted changes introduce, vs HEAD

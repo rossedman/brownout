@@ -1,9 +1,10 @@
 name: sarifix
 
-# Scans with the scanners in sarifix.yaml (golangci-lint, Trivy, Semgrep).
-# On pull requests it reports the findings the change introduces. On master,
-# weekly and on demand it uploads every finding to code scanning and keeps one
-# GitHub issue per batch of allowed rules (rules.allow in sarifix.yaml).
+# Scans with the scanners in sarifix.yaml (golangci-lint and Semgrep). On pull
+# requests it reports the findings the change introduces. On master, weekly
+# and on demand it uploads every finding to code scanning and keeps one GitHub
+# issue per batch of allowed rules (rules.allow in sarifix.yaml), including
+# the CodeQL alerts that codeql.yml reports, which it imports.
 # Docs: https://rossedman.io/sarifix/action/
 
 on:
