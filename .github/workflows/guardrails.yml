@@ -26,6 +26,6 @@ jobs:
           go-version: stable
       # On pull requests this gates only the changed files against the base
       # branch; on pushes it gates every package.
-      - uses: rossedman/guardrails@930ad8d8abfbc536f9dbe02df92902c2290163a5 # v0.4.0
+      - uses: rossedman/guardrails@5a8819d6b43c3fdb96e6dd280a52936e52d0e56e # v0.7.0
         with:
           version: 0.4.0 # match the action; the default "latest" can lack binaries
